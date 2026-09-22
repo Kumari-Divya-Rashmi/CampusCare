@@ -24,321 +24,407 @@ const fillBreakdown = (
   aggregationData,
   keyName
 ) => {
-  const countMap = new Map(
-    aggregationData.map((item) => [
-      item._id,
-      item.count,
-    ])
-  );
-
-  return values.map((value) => ({
-    [keyName]: value,
-    count: countMap.get(value) || 0,
-  }));
-};
-
-const buildLastSixMonths = () => {
-  const months = [];
-  const now = new Date();
-
-  for (let offset = 5; offset >= 0; offset -= 1) {
-    const date = new Date(
-      now.getFullYear(),
-      now.getMonth() - offset,
-      1
+  const countMap =
+    new Map(
+      aggregationData.map(
+        (item) => [
+          item._id,
+          item.count,
+        ]
+      )
     );
 
-    const key = `${date.getFullYear()}-${String(
-      date.getMonth() + 1
-    ).padStart(2, "0")}`;
+  return values.map(
+    (value) => ({
+      [keyName]:
+        value,
 
-    const label =
-      date.toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      });
-
-    months.push({
-      key,
-      label,
-    });
-  }
-
-  return months;
+      count:
+        countMap.get(
+          value
+        ) || 0,
+    })
+  );
 };
 
-export const getAdminAnalytics = async (
-  req,
-  res
-) => {
-  try {
-    const sixMonths =
-      buildLastSixMonths();
+const buildLastSixMonths =
+  () => {
+    const months = [];
 
-    const firstMonth =
-      sixMonths[0];
+    const now =
+      new Date();
 
-    const [
-      totalComplaints,
-      statusAggregation,
-      categoryAggregation,
-      criticalOpenComplaints,
-      ratingAggregation,
-      resolutionAggregation,
-      monthlyAggregation,
-    ] = await Promise.all([
-      Complaint.countDocuments(),
+    for (
+      let offset = 5;
+      offset >= 0;
+      offset -= 1
+    ) {
+      const date =
+        new Date(
+          now.getFullYear(),
+          now.getMonth() -
+            offset,
+          1
+        );
 
-      Complaint.aggregate([
-        {
-          $group: {
-            _id: "$status",
-            count: {
-              $sum: 1,
-            },
-          },
-        },
-      ]),
+      const key =
+        `${date.getFullYear()}-${String(
+          date.getMonth() +
+            1
+        ).padStart(
+          2,
+          "0"
+        )}`;
 
-      Complaint.aggregate([
-        {
-          $group: {
-            _id: "$category",
-            count: {
-              $sum: 1,
-            },
-          },
-        },
+      const label =
+        date.toLocaleDateString(
+          "en-US",
+          {
+            month:
+              "short",
 
-        {
-          $sort: {
-            count: -1,
-          },
-        },
-      ]),
+            year:
+              "numeric",
+          }
+        );
 
-      Complaint.countDocuments({
-        priority: "critical",
+      months.push({
+        key,
+        label,
+      });
+    }
 
-        status: {
-          $ne: "resolved",
-        },
-      }),
+    return months;
+  };
 
-      Feedback.aggregate([
-        {
-          $group: {
-            _id: null,
+export const getAdminAnalytics =
+  async (req, res) => {
+    try {
+      const sixMonths =
+        buildLastSixMonths();
 
-            averageRating: {
-              $avg: "$rating",
-            },
+      const firstMonth =
+        sixMonths[0];
 
-            feedbackCount: {
-              $sum: 1,
-            },
-          },
-        },
-      ]),
+      const [
+        totalComplaints,
+        statusAggregation,
+        categoryAggregation,
+        criticalOpenComplaints,
+        ratingAggregation,
+        resolutionAggregation,
+        monthlyAggregation,
+      ] =
+        await Promise.all([
+          Complaint.countDocuments(),
 
-      Complaint.aggregate([
-        {
-          $match: {
-            status: "resolved",
-          },
-        },
+          Complaint.aggregate([
+            {
+              $group: {
+                _id:
+                  "$status",
 
-        {
-          $project: {
-            resolutionHours: {
-              $divide: [
-                {
-                  $subtract: [
-                    "$updatedAt",
-                    "$createdAt",
-                  ],
+                count: {
+                  $sum: 1,
                 },
-
-                1000 * 60 * 60,
-              ],
+              },
             },
-          },
-        },
+          ]),
 
-        {
-          $group: {
-            _id: null,
+          Complaint.aggregate([
+            {
+              $group: {
+                _id:
+                  "$category",
 
-            averageResolutionHours: {
-              $avg: "$resolutionHours",
-            },
-          },
-        },
-      ]),
-
-      Complaint.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(
-                `${firstMonth.key}-01T00:00:00.000Z`
-              ),
-            },
-          },
-        },
-
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: "%Y-%m",
-                date: "$createdAt",
+                count: {
+                  $sum: 1,
+                },
               },
             },
 
-            count: {
-              $sum: 1,
+            {
+              $sort: {
+                count: -1,
+              },
             },
-          },
-        },
+          ]),
 
-        {
-          $sort: {
-            _id: 1,
-          },
-        },
-      ]),
-    ]);
+          Complaint.countDocuments(
+            {
+              priority:
+                "critical",
 
-    const statusBreakdown =
-      fillBreakdown(
-        STATUS_VALUES,
-        statusAggregation,
-        "status"
-      );
+              status: {
+                $ne:
+                  "resolved",
+              },
+            }
+          ),
 
-    const categoryBreakdown =
-      fillBreakdown(
-        CATEGORY_VALUES,
-        categoryAggregation,
-        "category"
-      );
+          Feedback.aggregate([
+            {
+              $group: {
+                _id: null,
 
-    const getStatusCount = (
-      status
-    ) => {
-      const item =
-        statusBreakdown.find(
-          (entry) =>
-            entry.status === status
+                averageRating: {
+                  $avg:
+                    "$rating",
+                },
+
+                feedbackCount: {
+                  $sum: 1,
+                },
+              },
+            },
+          ]),
+
+          Complaint.aggregate([
+            {
+              $match: {
+                status:
+                  "resolved",
+              },
+            },
+
+            {
+              $project: {
+                resolvedMoment: {
+                  $ifNull: [
+                    "$resolvedAt",
+                    "$updatedAt",
+                  ],
+                },
+
+                createdAt: 1,
+              },
+            },
+
+            {
+              $project: {
+                resolutionHours: {
+                  $divide: [
+                    {
+                      $subtract: [
+                        "$resolvedMoment",
+                        "$createdAt",
+                      ],
+                    },
+
+                    1000 *
+                      60 *
+                      60,
+                  ],
+                },
+              },
+            },
+
+            {
+              $group: {
+                _id: null,
+
+                averageResolutionHours:
+                  {
+                    $avg:
+                      "$resolutionHours",
+                  },
+              },
+            },
+          ]),
+
+          Complaint.aggregate([
+            {
+              $match: {
+                createdAt: {
+                  $gte:
+                    new Date(
+                      `${firstMonth.key}-01T00:00:00.000Z`
+                    ),
+                },
+              },
+            },
+
+            {
+              $group: {
+                _id: {
+                  $dateToString:
+                    {
+                      format:
+                        "%Y-%m",
+
+                      date:
+                        "$createdAt",
+                    },
+                },
+
+                count: {
+                  $sum: 1,
+                },
+              },
+            },
+
+            {
+              $sort: {
+                _id: 1,
+              },
+            },
+          ]),
+        ]);
+
+      const statusBreakdown =
+        fillBreakdown(
+          STATUS_VALUES,
+          statusAggregation,
+          "status"
         );
 
-      return item?.count || 0;
-    };
+      const categoryBreakdown =
+        fillBreakdown(
+          CATEGORY_VALUES,
+          categoryAggregation,
+          "category"
+        );
 
-    const pendingComplaints =
-      getStatusCount("pending");
+      const getStatusCount =
+        (status) => {
+          const item =
+            statusBreakdown.find(
+              (entry) =>
+                entry.status ===
+                status
+            );
 
-    const assignedComplaints =
-      getStatusCount("assigned");
-
-    const inProgressComplaints =
-      getStatusCount(
-        "in-progress"
-      );
-
-    const resolvedComplaints =
-      getStatusCount("resolved");
-
-    const resolutionRate =
-      totalComplaints === 0
-        ? 0
-        : Number(
-            (
-              (resolvedComplaints /
-                totalComplaints) *
-              100
-            ).toFixed(1)
+          return (
+            item?.count ||
+            0
           );
+        };
 
-    const averageRating =
-      ratingAggregation.length > 0
-        ? Number(
-            ratingAggregation[0]
-              .averageRating.toFixed(1)
+      const pendingComplaints =
+        getStatusCount(
+          "pending"
+        );
+
+      const assignedComplaints =
+        getStatusCount(
+          "assigned"
+        );
+
+      const inProgressComplaints =
+        getStatusCount(
+          "in-progress"
+        );
+
+      const resolvedComplaints =
+        getStatusCount(
+          "resolved"
+        );
+
+      const resolutionRate =
+        totalComplaints === 0
+          ? 0
+          : Number(
+              (
+                (resolvedComplaints /
+                  totalComplaints) *
+                100
+              ).toFixed(1)
+            );
+
+      const averageRating =
+        ratingAggregation.length >
+        0
+          ? Number(
+              ratingAggregation[0]
+                .averageRating.toFixed(
+                  1
+                )
+            )
+          : 0;
+
+      const feedbackCount =
+        ratingAggregation.length >
+        0
+          ? ratingAggregation[0]
+              .feedbackCount
+          : 0;
+
+      const averageResolutionHours =
+        resolutionAggregation.length >
+        0
+          ? Number(
+              resolutionAggregation[0]
+                .averageResolutionHours.toFixed(
+                  1
+                )
+            )
+          : 0;
+
+      const monthlyCountMap =
+        new Map(
+          monthlyAggregation.map(
+            (item) => [
+              item._id,
+              item.count,
+            ]
           )
-        : 0;
+        );
 
-    const feedbackCount =
-      ratingAggregation.length > 0
-        ? ratingAggregation[0]
-            .feedbackCount
-        : 0;
+      const monthlyTrend =
+        sixMonths.map(
+          (month) => ({
+            month:
+              month.label,
 
-    const averageResolutionHours =
-      resolutionAggregation.length >
-      0
-        ? Number(
-            resolutionAggregation[0]
-              .averageResolutionHours.toFixed(
-                1
-              )
-          )
-        : 0;
+            count:
+              monthlyCountMap.get(
+                month.key
+              ) || 0,
+          })
+        );
 
-    const monthlyCountMap =
-      new Map(
-        monthlyAggregation.map(
-          (item) => [
-            item._id,
-            item.count,
-          ]
-        )
+      res.status(200).json({
+        success: true,
+
+        summary: {
+          totalComplaints,
+
+          pendingComplaints,
+
+          assignedComplaints,
+
+          inProgressComplaints,
+
+          resolvedComplaints,
+
+          criticalOpenComplaints,
+
+          resolutionRate,
+
+          averageRating,
+
+          feedbackCount,
+
+          averageResolutionHours,
+        },
+
+        statusBreakdown,
+
+        categoryBreakdown,
+
+        monthlyTrend,
+      });
+    } catch (error) {
+      console.error(
+        "Admin analytics error:",
+        error
       );
 
-    const monthlyTrend =
-      sixMonths.map((month) => ({
-        month: month.label,
+      res.status(500).json({
+        success: false,
 
-        count:
-          monthlyCountMap.get(
-            month.key
-          ) || 0,
-      }));
-
-    res.status(200).json({
-      success: true,
-
-      summary: {
-        totalComplaints,
-        pendingComplaints,
-        assignedComplaints,
-        inProgressComplaints,
-        resolvedComplaints,
-        criticalOpenComplaints,
-        resolutionRate,
-        averageRating,
-        feedbackCount,
-        averageResolutionHours,
-      },
-
-      statusBreakdown,
-
-      categoryBreakdown,
-
-      monthlyTrend,
-    });
-  } catch (error) {
-    console.error(
-      "Admin analytics error:",
-      error
-    );
-
-    res.status(500).json({
-      success: false,
-
-      message:
-        "Server error while loading analytics",
-    });
-  }
-};
+        message:
+          "Server error while loading analytics",
+      });
+    }
+  };

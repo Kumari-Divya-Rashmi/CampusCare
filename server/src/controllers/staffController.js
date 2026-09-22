@@ -23,8 +23,10 @@ export const getAssignedComplaints =
 
       res.status(200).json({
         success: true,
+
         count:
           complaints.length,
+
         complaints,
       });
     } catch (error) {
@@ -35,6 +37,7 @@ export const getAssignedComplaints =
 
       res.status(500).json({
         success: false,
+
         message:
           "Server error while fetching assigned complaints",
       });
@@ -57,11 +60,14 @@ export const updateComplaintStatus =
           complaintId
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid complaint ID",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid complaint ID",
+          });
       }
 
       const allowedStatuses = [
@@ -74,27 +80,34 @@ export const updateComplaintStatus =
           status
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid complaint status",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid complaint status",
+          });
       }
 
       const complaint =
         await Complaint.findOne({
-          _id: complaintId,
+          _id:
+            complaintId,
 
           assignedTo:
             req.user._id,
         });
 
       if (!complaint) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Assigned complaint not found",
-        });
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Assigned complaint not found",
+          });
       }
 
       const validTransitions = {
@@ -114,12 +127,14 @@ export const updateComplaintStatus =
         expectedNextStatus !==
         status
       ) {
-        return res.status(400).json({
-          success: false,
+        return res
+          .status(400)
+          .json({
+            success: false,
 
-          message:
-            `Cannot change complaint from ${complaint.status} to ${status}`,
-        });
+            message:
+              `Cannot change complaint from ${complaint.status} to ${status}`,
+          });
       }
 
       const previousStatus =
@@ -127,6 +142,14 @@ export const updateComplaintStatus =
 
       complaint.status =
         status;
+
+      if (
+        status ===
+        "resolved"
+      ) {
+        complaint.resolvedAt =
+          new Date();
+      }
 
       await complaint.save();
 
@@ -218,6 +241,7 @@ export const updateComplaintStatus =
 
       res.status(500).json({
         success: false,
+
         message:
           "Server error while updating complaint status",
       });

@@ -1,155 +1,169 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
 import mongoose from "mongoose";
+
+import {
+  createServer,
+} from "node:http";
+
+import app from "./app.js";
 
 import connectDB from "./config/db.js";
 
-import authRoutes from "./routes/authRoutes.js";
-import accessRoutes from "./routes/accessRoutes.js";
-import complaintRoutes from "./routes/complaintRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js";
-import staffRoutes from "./routes/staffRoutes.js";
-import notificationRoutes from "./routes/notificationRoutes.js";
+import {
+  env,
+  validateEnvironment,
+} from "./config/env.js";
 
-dotenv.config();
+import {
+  initializeSocket,
+  getIO,
+} from "./socket/socket.js";
 
-const app = express();
+const httpServer =
+  createServer(app);
 
-connectDB();
+let shuttingDown =
+  false;
 
-app.use(
-  cors({
-    origin:
-      "http://localhost:5173",
-  })
-);
+const gracefulShutdown =
+  (signal) => {
+    if (shuttingDown) {
+      return;
+    }
 
-app.use(
-  express.json()
-);
+    shuttingDown = true;
 
-app.get(
-  "/",
-  (req, res) => {
-    res.send(
-      "CampusCare API is running"
+    console.log(
+      `${signal} received. Shutting down CampusCare...`
+    );
+
+    const forceExitTimer =
+      setTimeout(() => {
+        console.error(
+          "Forced shutdown after timeout."
+        );
+
+        process.exit(1);
+      }, 10000);
+
+    forceExitTimer.unref();
+
+    const socketServer =
+      getIO();
+
+    if (socketServer) {
+      socketServer.close();
+    }
+
+    httpServer.close(
+      async () => {
+        try {
+          await mongoose.connection.close();
+
+          console.log(
+            "MongoDB connection closed."
+          );
+
+          console.log(
+            "CampusCare shutdown complete."
+          );
+
+          process.exit(0);
+        } catch (error) {
+          console.error(
+            "Shutdown error:",
+            error
+          );
+
+          process.exit(1);
+        }
+      }
+    );
+  };
+
+const startServer =
+  async () => {
+    validateEnvironment();
+
+    await connectDB();
+
+    initializeSocket(
+      httpServer
+    );
+
+    httpServer.listen(
+      env.port,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `CampusCare server running on port ${env.port}`
+        );
+
+        console.log(
+          `Environment: ${env.nodeEnv}`
+        );
+
+        console.log(
+          `Allowed origins: ${env.allowedOrigins.join(
+            ", "
+          )}`
+        );
+      }
+    );
+  };
+
+process.on(
+  "SIGINT",
+  () => {
+    gracefulShutdown(
+      "SIGINT"
     );
   }
 );
 
-app.get(
-  "/api/health",
-  (req, res) => {
-    const databaseConnected =
-      mongoose.connection
-        .readyState === 1;
-
-    res.status(200).json({
-      success: true,
-
-      message:
-        "CampusCare backend is healthy",
-
-      database:
-        databaseConnected
-          ? "connected"
-          : "disconnected",
-    });
+process.on(
+  "SIGTERM",
+  () => {
+    gracefulShutdown(
+      "SIGTERM"
+    );
   }
 );
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
-
-app.use(
-  "/api/access",
-  accessRoutes
-);
-
-app.use(
-  "/api/complaints",
-  complaintRoutes
-);
-
-app.use(
-  "/api/admin",
-  adminRoutes
-);
-
-app.use(
-  "/api/staff",
-  staffRoutes
-);
-
-app.use(
-  "/api/notifications",
-  notificationRoutes
-);
-
-app.use(
-  (
-    error,
-    req,
-    res,
-    next
-  ) => {
-    if (
-      error?.name ===
-      "MulterError"
-    ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-
-          message:
-            error.code ===
-            "LIMIT_FILE_SIZE"
-              ? "Image must be smaller than 5 MB"
-              : error.message,
-        });
-    }
-
-    if (
-      error?.message ===
-      "Only JPG, PNG and WEBP images are allowed"
-    ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            error.message,
-        });
-    }
-
+process.on(
+  "unhandledRejection",
+  (reason) => {
     console.error(
-      "Unhandled server error:",
+      "Unhandled promise rejection:",
+      reason
+    );
+
+    gracefulShutdown(
+      "unhandledRejection"
+    );
+  }
+);
+
+process.on(
+  "uncaughtException",
+  (error) => {
+    console.error(
+      "Uncaught exception:",
       error
     );
 
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          "Internal server error",
-      });
+    gracefulShutdown(
+      "uncaughtException"
+    );
   }
 );
 
-const PORT =
-  process.env.PORT ||
-  5000;
-
-app.listen(
-  PORT,
-  () => {
-    console.log(
-      `CampusCare server running on port ${PORT}`
+startServer().catch(
+  (error) => {
+    console.error(
+      "CampusCare startup failed:",
+      error
     );
+
+    process.exit(1);
   }
 );

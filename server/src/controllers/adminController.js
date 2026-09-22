@@ -6,7 +6,9 @@ import User from "../models/User.js";
 import recordActivity from "../utils/recordActivity.js";
 import createNotification from "../utils/createNotification.js";
 
-const escapeRegex = (value) => {
+const escapeRegex = (
+  value
+) => {
   return value.replace(
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
@@ -57,11 +59,13 @@ export const getAllComplaints =
           status
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid status filter",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Invalid status filter",
+          });
       }
 
       if (
@@ -70,11 +74,13 @@ export const getAllComplaints =
           category
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid category filter",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Invalid category filter",
+          });
       }
 
       if (
@@ -83,11 +89,13 @@ export const getAllComplaints =
           priority
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid priority filter",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Invalid priority filter",
+          });
       }
 
       const pageNumber =
@@ -114,7 +122,8 @@ export const getAllComplaints =
       const filter = {};
 
       if (status) {
-        filter.status = status;
+        filter.status =
+          status;
       }
 
       if (category) {
@@ -193,14 +202,18 @@ export const getAllComplaints =
           )
           .populate(
             "assignedTo",
-            "name email department"
+            "name email department isActive"
           )
-          .sort(sortOption)
+          .sort(
+            sortOption
+          )
           .skip(
             (pageNumber - 1) *
               pageSize
           )
-          .limit(pageSize);
+          .limit(
+            pageSize
+          );
 
       res.status(200).json({
         success: true,
@@ -235,6 +248,7 @@ export const getAllComplaints =
 
       res.status(500).json({
         success: false,
+
         message:
           "Server error while fetching complaints",
       });
@@ -247,9 +261,13 @@ export const getStaffUsers =
       const staff =
         await User.find({
           role: "staff",
+
+          isActive: {
+            $ne: false,
+          },
         })
           .select(
-            "name email department role"
+            "name email department role isActive"
           )
           .sort({
             name: 1,
@@ -257,7 +275,10 @@ export const getStaffUsers =
 
       res.status(200).json({
         success: true,
-        count: staff.length,
+
+        count:
+          staff.length,
+
         staff,
       });
     } catch (error) {
@@ -268,6 +289,7 @@ export const getStaffUsers =
 
       res.status(500).json({
         success: false,
+
         message:
           "Server error while fetching staff",
       });
@@ -290,11 +312,14 @@ export const assignComplaint =
           complaintId
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid complaint ID",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid complaint ID",
+          });
       }
 
       if (
@@ -302,11 +327,14 @@ export const assignComplaint =
           staffId
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid staff ID",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid staff ID",
+          });
       }
 
       const complaint =
@@ -315,36 +343,49 @@ export const assignComplaint =
         );
 
       if (!complaint) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Complaint not found",
-        });
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Complaint not found",
+          });
       }
 
       const staffMember =
         await User.findOne({
           _id: staffId,
           role: "staff",
+
+          isActive: {
+            $ne: false,
+          },
         });
 
       if (!staffMember) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Selected user is not a valid staff member",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Selected user is not an active staff member",
+          });
       }
 
       if (
         complaint.status ===
         "resolved"
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Resolved complaints cannot be reassigned",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Resolved complaints cannot be reassigned",
+          });
       }
 
       complaint.assignedTo =
@@ -415,7 +456,7 @@ export const assignComplaint =
           )
           .populate(
             "assignedTo",
-            "name email department"
+            "name email department isActive"
           );
 
       res.status(200).json({
@@ -435,6 +476,7 @@ export const assignComplaint =
 
       res.status(500).json({
         success: false,
+
         message:
           "Server error while assigning complaint",
       });

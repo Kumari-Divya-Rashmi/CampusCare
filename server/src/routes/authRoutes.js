@@ -10,12 +10,29 @@ import {
   protect,
 } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+import {
+  authRateLimiter,
+} from "../middleware/rateLimitMiddleware.js";
 
-router.post("/register", registerUser);
+const router =
+  express.Router();
 
-router.post("/login", loginUser);
+router.post(
+  "/register",
+  authRateLimiter,
+  registerUser
+);
 
-router.get("/me", protect, getMyProfile);
+router.post(
+  "/login",
+  authRateLimiter,
+  loginUser
+);
+
+router.get(
+  "/me",
+  protect,
+  getMyProfile
+);
 
 export default router;

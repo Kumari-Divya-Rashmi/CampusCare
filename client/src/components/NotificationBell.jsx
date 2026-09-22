@@ -17,6 +17,11 @@ import {
   markNotificationRead,
 } from "../services/notificationService";
 
+import {
+  connectSocket,
+  disconnectSocket,
+} from "../services/socketService";
+
 import "./NotificationBell.css";
 
 const NotificationBell = () => {
@@ -51,6 +56,11 @@ const NotificationBell = () => {
     error,
     setError,
   ] = useState("");
+
+  const [
+    realtimeConnected,
+    setRealtimeConnected,
+  ] = useState(false);
 
   const loadNotifications =
     async (
@@ -90,14 +100,121 @@ const NotificationBell = () => {
 
   useEffect(() => {
     if (!user) {
-      setNotifications([]);
+      setNotifications(
+        []
+      );
+
       setUnreadCount(0);
+
       setPanelOpen(false);
+
+      setRealtimeConnected(
+        false
+      );
+
+      disconnectSocket();
 
       return undefined;
     }
 
     loadNotifications();
+
+    const socket =
+      connectSocket();
+
+    const handleConnect =
+      () => {
+        setRealtimeConnected(
+          true
+        );
+
+        loadNotifications();
+      };
+
+    const handleDisconnect =
+      () => {
+        setRealtimeConnected(
+          false
+        );
+      };
+
+    const handleConnectError =
+      (socketError) => {
+        console.error(
+          "Socket connection error:",
+          socketError.message
+        );
+
+        setRealtimeConnected(
+          false
+        );
+      };
+
+    const handleNewNotification =
+      (notification) => {
+        setNotifications(
+          (
+            currentNotifications
+          ) => {
+            const alreadyExists =
+              currentNotifications.some(
+                (item) =>
+                  item._id ===
+                  notification._id
+              );
+
+            if (
+              alreadyExists
+            ) {
+              return currentNotifications;
+            }
+
+            return [
+              notification,
+              ...currentNotifications,
+            ].slice(0, 20);
+          }
+        );
+
+        if (
+          !notification.isRead
+        ) {
+          setUnreadCount(
+            (current) =>
+              current + 1
+          );
+        }
+      };
+
+    if (socket) {
+      socket.on(
+        "connect",
+        handleConnect
+      );
+
+      socket.on(
+        "disconnect",
+        handleDisconnect
+      );
+
+      socket.on(
+        "connect_error",
+        handleConnectError
+      );
+
+      socket.on(
+        "notification:new",
+        handleNewNotification
+      );
+
+      if (
+        socket.connected
+      ) {
+        setRealtimeConnected(
+          true
+        );
+      }
+    }
 
     const intervalId =
       setInterval(() => {
@@ -107,6 +224,34 @@ const NotificationBell = () => {
     return () => {
       clearInterval(
         intervalId
+      );
+
+      if (socket) {
+        socket.off(
+          "connect",
+          handleConnect
+        );
+
+        socket.off(
+          "disconnect",
+          handleDisconnect
+        );
+
+        socket.off(
+          "connect_error",
+          handleConnectError
+        );
+
+        socket.off(
+          "notification:new",
+          handleNewNotification
+        );
+      }
+
+      disconnectSocket();
+
+      setRealtimeConnected(
+        false
       );
     };
   }, [user]);
@@ -118,13 +263,15 @@ const NotificationBell = () => {
   const getComplaintPath =
     (complaintId) => {
       if (
-        user.role === "admin"
+        user.role ===
+        "admin"
       ) {
         return `/admin/complaints/${complaintId}`;
       }
 
       if (
-        user.role === "staff"
+        user.role ===
+        "staff"
       ) {
         return `/staff/complaints/${complaintId}`;
       }
@@ -170,6 +317,7 @@ const NotificationBell = () => {
                   notification._id
                     ? {
                         ...item,
+
                         isRead:
                           true,
                       }
@@ -186,13 +334,22 @@ const NotificationBell = () => {
           );
         }
 
-        setPanelOpen(false);
+        setPanelOpen(
+          false
+        );
+
+        const complaint =
+          notification.complaint;
 
         const complaintId =
-          notification
-            .complaint?._id;
+          typeof complaint ===
+          "string"
+            ? complaint
+            : complaint?._id;
 
-        if (complaintId) {
+        if (
+          complaintId
+        ) {
           navigate(
             getComplaintPath(
               complaintId
@@ -218,9 +375,13 @@ const NotificationBell = () => {
             currentNotifications
           ) =>
             currentNotifications.map(
-              (notification) => ({
+              (
+                notification
+              ) => ({
                 ...notification,
-                isRead: true,
+
+                isRead:
+                  true,
               })
             )
         );
@@ -247,7 +408,8 @@ const NotificationBell = () => {
           🔔
         </span>
 
-        {unreadCount > 0 && (
+        {unreadCount >
+          0 && (
           <span className="notification-count">
             {unreadCount >
             99
@@ -269,9 +431,22 @@ const NotificationBell = () => {
                 {unreadCount}{" "}
                 unread
               </p>
+
+              <span
+                className={
+                  realtimeConnected
+                    ? "notification-live-status notification-live"
+                    : "notification-live-status notification-offline"
+                }
+              >
+                {realtimeConnected
+                  ? "● Live"
+                  : "● Reconnecting"}
+              </span>
             </div>
 
-            {unreadCount > 0 && (
+            {unreadCount >
+              0 && (
               <button
                 type="button"
                 onClick={
@@ -296,7 +471,8 @@ const NotificationBell = () => {
           ) : notifications.length ===
             0 ? (
             <div className="notification-state">
-              No notifications yet.
+              No notifications
+              yet.
             </div>
           ) : (
             <div className="notification-list">

@@ -1,11 +1,28 @@
 import jwt from "jsonwebtoken";
 
-const generateToken = (userId) => {
+import {
+  env,
+} from "../config/env.js";
+
+const generateToken = (
+  userId
+) => {
   return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      userId,
+    },
+
+    env.jwtSecret,
+
+    {
+      expiresIn:
+        env.jwtExpiresIn,
+
+      issuer:
+        "campuscare-api",
+
+      audience:
+        "campuscare-client",
     }
   );
 };

@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CreateComplaintPage from "./pages/CreateComplaintPage";
 import ComplaintDetailsPage from "./pages/ComplaintDetailsPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 
@@ -139,6 +140,19 @@ function App() {
               ]}
             >
               <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "admin",
+              ]}
+            >
+              <AdminUsersPage />
             </ProtectedRoute>
           }
         />

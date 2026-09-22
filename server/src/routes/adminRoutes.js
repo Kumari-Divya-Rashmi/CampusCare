@@ -11,11 +11,19 @@ import {
 } from "../controllers/analyticsController.js";
 
 import {
+  getAdminUsers,
+  createStaffUser,
+  updateUserStatus,
+  updateUserRole,
+} from "../controllers/adminUserController.js";
+
+import {
   protect,
   authorizeRoles,
 } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+const router =
+  express.Router();
 
 router.use(
   protect,
@@ -40,6 +48,26 @@ router.get(
 router.patch(
   "/complaints/:complaintId/assign",
   assignComplaint
+);
+
+router.get(
+  "/users",
+  getAdminUsers
+);
+
+router.post(
+  "/users/staff",
+  createStaffUser
+);
+
+router.patch(
+  "/users/:userId/status",
+  updateUserStatus
+);
+
+router.patch(
+  "/users/:userId/role",
+  updateUserRole
 );
 
 export default router;

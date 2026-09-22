@@ -5,13 +5,19 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
+      required: [
+        true,
+        "Name is required",
+      ],
       trim: true,
     },
 
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: [
+        true,
+        "Email is required",
+      ],
       unique: true,
       lowercase: true,
       trim: true,
@@ -19,14 +25,21 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: [
+        true,
+        "Password is required",
+      ],
       minlength: 6,
       select: false,
     },
 
     role: {
       type: String,
-      enum: ["student", "staff", "admin"],
+      enum: [
+        "student",
+        "staff",
+        "admin",
+      ],
       default: "student",
     },
 
@@ -35,39 +48,56 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Hash password before saving user
-userSchema.pre("save", async function () {
-  // If password was not changed, don't hash it again
-  if (!this.isModified("password")) {
-    return;
+userSchema.pre(
+  "save",
+  async function () {
+    if (
+      !this.isModified(
+        "password"
+      )
+    ) {
+      return;
+    }
+
+    const salt =
+      await bcrypt.genSalt(
+        10
+      );
+
+    this.password =
+      await bcrypt.hash(
+        this.password,
+        salt
+      );
   }
+);
 
-  const salt = await bcrypt.genSalt(10);
-
-  this.password = await bcrypt.hash(
-    this.password,
-    salt
-  );
-});
-
-// Compare login password with stored hashed password
 userSchema.methods.comparePassword =
-  async function (enteredPassword) {
+  async function (
+    enteredPassword
+  ) {
     return bcrypt.compare(
       enteredPassword,
       this.password
     );
   };
 
-const User = mongoose.model(
-  "User",
-  userSchema
-);
+const User =
+  mongoose.model(
+    "User",
+    userSchema
+  );
 
 export default User;

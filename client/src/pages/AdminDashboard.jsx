@@ -26,7 +26,8 @@ const AdminDashboard = () => {
     logout,
   } = useAuth();
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const [
     complaints,
@@ -120,7 +121,9 @@ const AdminDashboard = () => {
           data.pagination
         );
       } catch (error) {
-        setError(error.message);
+        setError(
+          error.message
+        );
       } finally {
         setLoading(false);
       }
@@ -136,7 +139,9 @@ const AdminDashboard = () => {
           data.staff
         );
       } catch (error) {
-        setError(error.message);
+        setError(
+          error.message
+        );
       }
     };
 
@@ -213,17 +218,25 @@ const AdminDashboard = () => {
           data.message
         );
 
-        await loadComplaints();
+        await Promise.all([
+          loadComplaints(),
+          loadStaff(),
+        ]);
       } catch (error) {
-        setError(error.message);
+        setError(
+          error.message
+        );
       }
     };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout =
+    () => {
+      logout();
 
-    navigate("/login");
-  };
+      navigate(
+        "/login"
+      );
+    };
 
   const pageNumbers =
     Array.from(
@@ -239,7 +252,8 @@ const AdminDashboard = () => {
   const firstResult =
     pagination.total === 0
       ? 0
-      : (pagination.page - 1) *
+      : (pagination.page -
+          1) *
           pagination.limit +
         1;
 
@@ -289,7 +303,20 @@ const AdminDashboard = () => {
             </p>
           </div>
 
-          <div>
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link
+              to="/admin/users"
+              className="details-link"
+            >
+              Manage Users
+            </Link>
+
             <Link
               to="/admin/analytics"
               className="details-link"
